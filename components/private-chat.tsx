@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Users, LogOut, MessageCircle } from "lucide-react"
+import { getServerConfig } from "@/lib/config"
 
 interface Message {
   id: string
@@ -34,9 +35,23 @@ export default function PrivateChat({ username }: PrivateChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Get server URL from environment or use localhost as fallback
+  const getServerUrl = () => {
+    if (typeof window !== "undefined") {
+      // In browser, try to get from environment or use current host
+      const host = process.env.NEXT_PUBLIC_SERVER_HOST || window.location.hostname
+      const port = process.env.NEXT_PUBLIC_SERVER_PORT || "5000"
+      return `http://${host}:${port}`
+    }
+    return "http://localhost:5000"
+  }
+
   useEffect(() => {
     // Initialize socket connection
-    const newSocket = io("http://localhost:5000", {
+    const { serverUrl } = getServerConfig()
+    console.log("Connecting to server:", serverUrl)
+
+    const newSocket = io(serverUrl, {
       transports: ["websocket"],
     })
 

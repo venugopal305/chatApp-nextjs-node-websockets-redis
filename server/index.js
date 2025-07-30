@@ -10,7 +10,7 @@ const server = http.createServer(app)
 // Configure CORS for Socket.IO
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*", // Allow all origins
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -25,7 +25,12 @@ const redisClient = redis.createClient({
 redisClient.connect().catch(console.error)
 
 // Middleware
-app.use(cors())
+app.use(
+  cors({
+    origin: "*", // Allow all origins
+    credentials: true,
+  }),
+)
 app.use(express.json())
 
 // Store active users and their socket IDs
@@ -158,16 +163,23 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 })
 
-app.get("/api/conversation/:user1/:user2", async (req, res) => {
-  try {
-    const { user1, user2 } = req.params
-    const conversationId = getConversationId(user1, user2)
-    const messages = await redisClient.lRange(`conversation:${conversationId}`, -50, -1)
-    const parsedMessages = messages.map((msg) => JSON.parse(msg))
-    res.json(parsedMessages)
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch conversation" })
+app.get("/api/server-info", (req, res) => {
+  const networkInterfaces = require("os").networkInterfaces()
+  const addresses = []
+
+  for (const name of Object.keys(networkInterfaces)) {
+    for (const net of networkInterfaces[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        addresses.push(net.address)
+      }
+    }
   }
+
+  res.json({
+    addresses,
+    port: process.env.PORT || 5000,
+    timestamp: new Date().toISOString(),
+  })
 })
 
 const PORT = process.env.PORT || 5000
