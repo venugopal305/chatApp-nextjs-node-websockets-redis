@@ -4,22 +4,15 @@ A real-time private messaging application built with Node.js, Socket.IO, Redis, 
 
 ## Features
 
-- Real-time private messaging between two users
+- Real-time private messaging between users
 - Message persistence with Redis
 - User presence indicators (online/offline)
 - Typing indicators
 - Message history for each conversation
-- Clean and responsive UI
-- Avatar support with user initials
-
-## How It Works
-
-1. **Login**: Users enter their username to join the chat
-2. **User List**: See all online users in the sidebar
-3. **Start Conversation**: Click on any user to start a private conversation
-4. **Real-time Messaging**: Send and receive messages instantly
-5. **Message History**: Previous conversations are automatically loaded
-6. **Typing Indicators**: See when the other person is typing
+- Notifications for new messages
+- Automatic reconnection
+- Production-ready configuration
+- Cross-device compatibility
 
 ## Prerequisites
 
@@ -27,7 +20,7 @@ A real-time private messaging application built with Node.js, Socket.IO, Redis, 
 - Redis server
 - npm or yarn
 
-## Setup Instructions
+## Quick Start
 
 ### 1. Install Redis
 
@@ -57,7 +50,7 @@ npm install
 
 Make sure Redis is running on localhost:6379 (default port).
 
-### 4. Run the Application
+### 4. Run the Application (Development)
 
 **Terminal 1 - Start the backend server:**
 \`\`\`bash
@@ -71,47 +64,61 @@ npm run dev
 
 ### 5. Access the Application
 
-1. Open your browser and go to `http://localhost:3000`
-2. Enter a username and click "Start Chatting"
-3. Open another browser tab/window with a different username
-4. Click on users in the sidebar to start private conversations
+Open your browser and go to `http://localhost:3000`
+
+## Production Deployment
+
+For production deployment across different devices, follow these steps:
+
+### 1. Setup Production Configuration
+
+\`\`\`bash
+npm run setup:prod
+\`\`\`
+
+This will create necessary configuration files with your network information.
+
+### 2. Build the Application
+
+\`\`\`bash
+npm run build
+\`\`\`
+
+### 3. Start in Production Mode
+
+\`\`\`bash
+npm run start:all
+\`\`\`
+
+Or if you have PM2 installed:
+
+\`\`\`bash
+pm2 start ecosystem.config.js
+\`\`\`
+
+### 4. Access from Different Devices
+
+- Server device: `http://localhost:3000`
+- Other devices: `http://YOUR_SERVER_IP:3000`
+
+For detailed production deployment instructions, see [PRODUCTION.md](./PRODUCTION.md).
 
 ## Project Structure
 
-\`\`\`bash
+\`\`\`
 ├── server/
 │   └── index.js          # Node.js server with Socket.IO and Redis
 ├── app/
 │   └── page.tsx          # Next.js home page
 ├── components/
-│   └── chat-room.tsx     # Chat room component
+│   └── private-chat.tsx  # Chat component
+├── lib/
+│   └── config.ts         # Configuration utilities
 ├── scripts/
-│   └── setup-redis.js    # Redis setup script
+│   ├── setup-redis.js    # Redis setup script
+│   └── setup-production.js # Production configuration script
 └── package.json
 \`\`\`
-
-## API Endpoints
-
-- `GET /api/health` - Health check endpoint
-- `GET /api/conversation/:user1/:user2` - Get conversation history between two users
-
-## Socket Events
-
-### Client to Server
-- `login` - User login with username
-- `start_conversation` - Start conversation with target user
-- `send_private_message` - Send private message
-- `typing` - Indicate user is typing
-- `stop_typing` - Stop typing indicator
-
-### Server to Client
-- `users_list` - List of online users
-- `user_online` - User came online
-- `user_offline` - User went offline
-- `conversation_started` - Conversation initiated with message history
-- `receive_private_message` - Receive new private message
-- `user_typing` - Typing indicator
-- `user_stop_typing` - Stop typing indicator
 
 ## Technologies Used
 
@@ -120,3 +127,9 @@ npm run dev
 - **UI Components:** shadcn/ui
 - **Real-time:** WebSocket connections via Socket.IO
 - **Storage:** Redis for message persistence
+- **Deployment:** PM2 for process management
+
+## License
+
+MIT
+\`\`\`
