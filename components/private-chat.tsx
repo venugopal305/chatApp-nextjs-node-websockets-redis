@@ -32,7 +32,7 @@ export default function PrivateChat({ username }: PrivateChatProps) {
   const [typingUser, setTypingUser] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout>()
 
   useEffect(() => {
     // Initialize socket connection

@@ -30,7 +30,7 @@ export default function ChatRoom({ username, room }: ChatRoomProps) {
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const typingTimeoutRef = useRef<NodeJS.Timeout| null>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     // Initialize socket connection
