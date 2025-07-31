@@ -8,10 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send, Users, LogOut, MessageCircle, AlertCircle, Wifi, WifiOff } from "lucide-react"
-import { getServerConfig } from "@/lib/config"
-import { useToast } from "@/components/ui/use-toast"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Send, Users, LogOut, MessageCircle } from "lucide-react"
 
 interface Message {
   id: string
@@ -34,134 +31,34 @@ export default function PrivateChat({ username }: PrivateChatProps) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [typingUser, setTypingUser] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
-  const [reconnecting, setReconnecting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const { toast } = useToast()
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Get server configuration
-    const { serverUrl } = getServerConfig()
-    console.log("Connecting to server:", serverUrl)
-
-    // Initialize socket connection with reconnection options
-    const newSocket = io(serverUrl, {
-      transports: ["websocket", "polling"], // Try WebSocket first, fallback to polling
-      reconnectionAttempts: 10,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
+    // Initialize socket connection
+    const newSocket = io("http://localhost:5000", {
+      transports: ["websocket"],
     })
 
-    // Connection events
     newSocket.on("connect", () => {
-      console.log("Socket connected:", newSocket.id)
       setIsConnected(true)
-      setConnectionError(null)
-      setReconnecting(false)
-
-      // Clear any reconnection timeout
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-
-      // Login with username
       newSocket.emit("login", username)
-
-      toast({
-        title: "Connected to chat server",
-        description: "You are now online",
-      })
     })
 
-    newSocket.on("connect_error", (err) => {
-      console.error("Connection error:", err.message)
-      setConnectionError(`Connection error: ${err.message}`)
+    newSocket.on("disconnect", () => {
       setIsConnected(false)
-
-      // Try to reconnect manually after socket.io gives up
-      if (!reconnecting) {
-        setReconnecting(true)
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log("Attempting manual reconnection...")
-          newSocket.connect()
-        }, 5000)
-      }
     })
 
-    newSocket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason)
-      setIsConnected(false)
-
-      if (reason === "io server disconnect") {
-        // Server disconnected us, try to reconnect manually
-        setReconnecting(true)
-        reconnectTimeoutRef.current = setTimeout(() => {
-          console.log("Attempting manual reconnection after server disconnect...")
-          newSocket.connect()
-        }, 5000)
-      }
-
-      toast({
-        variant: "destructive",
-        title: "Disconnected from server",
-        description: "Attempting to reconnect...",
-      })
-    })
-
-    newSocket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(`Reconnection attempt ${attemptNumber}...`)
-      setReconnecting(true)
-    })
-
-    newSocket.on("reconnect", () => {
-      console.log("Reconnected to server")
-      setReconnecting(false)
-
-      // Re-login after reconnection
-      newSocket.emit("login", username)
-
-      toast({
-        title: "Reconnected to chat server",
-        description: "You are back online",
-      })
-    })
-
-    newSocket.on("error", (error) => {
-      console.error("Socket error:", error)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "An unknown error occurred",
-      })
-    })
-
-    // Chat events
     newSocket.on("users_list", (userList: string[]) => {
       setUsers(userList)
     })
 
     newSocket.on("user_online", (user: string) => {
       setUsers((prev) => (prev.includes(user) ? prev : [...prev, user]))
-
-      toast({
-        title: "User online",
-        description: `${user} is now online`,
-      })
     })
 
     newSocket.on("user_offline", (user: string) => {
       setUsers((prev) => prev.filter((u) => u !== user))
-
-      if (selectedUser === user) {
-        toast({
-          variant: "destructive",
-          title: "User offline",
-          description: `${user} has gone offline`,
-        })
-      }
     })
 
     newSocket.on("conversation_started", (data) => {
@@ -173,20 +70,6 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
       // Only show messages for current conversation
       if (selectedUser && (message.sender === selectedUser || message.targetUser === selectedUser)) {
         setMessages((prev) => [...prev, message])
-
-        // Notify if message is from the other user and window is not focused
-        if (message.sender === selectedUser && document.visibilityState !== "visible") {
-          // Browser notification if supported
-          if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(`New message from ${message.sender}`, {
-              body: message.message,
-            })
-          }
-
-          // Sound notification
-          const audio = new Audio("/notification.mp3")
-          audio.play().catch((err) => console.error("Failed to play notification sound:", err))
-        }
       }
     })
 
@@ -204,38 +87,24 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     setSocket(newSocket)
 
-    // Request notification permission
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission()
-    }
-
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
       newSocket.close()
     }
-  }, [username, toast])
+  }, [username, selectedUser])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   const startConversation = (targetUser: string) => {
-    if (socket && socket.connected) {
+    if (socket) {
       socket.emit("start_conversation", targetUser)
       setMessages([]) // Clear previous messages
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Connection error",
-        description: "You are not connected to the server",
-      })
     }
   }
 
   const sendMessage = () => {
-    if (newMessage.trim() && socket && socket.connected && selectedUser) {
+    if (newMessage.trim() && socket && selectedUser) {
       socket.emit("send_private_message", {
         targetUser: selectedUser,
         message: newMessage,
@@ -247,17 +116,11 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
-    } else if (!socket || !socket.connected) {
-      toast({
-        variant: "destructive",
-        title: "Cannot send message",
-        description: "You are not connected to the server",
-      })
     }
   }
 
   const handleTyping = () => {
-    if (socket && socket.connected && selectedUser) {
+    if (socket && selectedUser) {
       socket.emit("typing", selectedUser)
 
       // Clear existing timeout
@@ -267,9 +130,7 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
       // Set new timeout to stop typing indicator
       typingTimeoutRef.current = setTimeout(() => {
-        if (socket && socket.connected) {
-          socket.emit("stop_typing", selectedUser)
-        }
+        socket.emit("stop_typing", selectedUser)
       }, 1000)
     }
   }
@@ -292,28 +153,8 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     return name.charAt(0).toUpperCase()
   }
 
-  const handleReconnect = () => {
-    if (socket) {
-      setReconnecting(true)
-      socket.connect()
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      {/* Connection status banner */}
-      {!isConnected && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{reconnecting ? "Reconnecting to server..." : connectionError || "Disconnected from server"}</span>
-            <Button variant="outline" size="sm" onClick={handleReconnect} disabled={reconnecting}>
-              {reconnecting ? "Reconnecting..." : "Reconnect"}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-2rem)]">
         {/* Users Sidebar */}
         <Card className="lg:col-span-1">
@@ -323,16 +164,9 @@ const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
                 <Users className="h-5 w-5" />
                 Users ({users.length})
               </CardTitle>
-              <div className="flex items-center gap-2">
-                {isConnected ? (
-                  <Wifi className="h-4 w-4 text-green-500" />
-                ) : (
-                  <WifiOff className="h-4 w-4 text-red-500" />
-                )}
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
             <p className="text-sm text-gray-600">Logged in as: {username}</p>
           </CardHeader>
